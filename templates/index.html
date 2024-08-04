@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Upload and Visualization</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        #summary, #visualization {
+            margin-top: 20px;
+        }
+        pre {
+            background: #f4f4f4;
+            padding: 10px;
+            border: 1px solid #ddd;
+            overflow: auto;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>Upload your dataset</h1>
+    <form id="uploadForm" action="/upload" method="post" enctype="multipart/form-data">
+        <input type="file" name="file" accept=".csv">
+        <input type="submit" value="Upload">
+    </form>
+
+    <div id="summary">
+        <h2>Original Data Summary</h2>
+        <div id="original-summary"></div>
+
+        <h2>Cleaned Data Summary</h2>
+        <div id="cleaned-summary"></div>
+    </div>
+
+    <div id="visualization">
+        <h2>Visualizations</h2>
+        <button id="plotly-btn">Plotly</button>
+        <button id="matplotlib-btn">Matplotlib</button>
+        <button id="seaborn-btn">Seaborn</button>
+
+        <div id="plotly-visualization"></div>
+        <img id="matplotlib-visualization" class="hidden" src="" alt="Matplotlib Visualization">
+        <img id="seaborn-visualization" class="hidden" src="" alt="Seaborn Visualization">
+    </div>
+
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script>
+        document.getElementById('uploadForm').onsubmit = async function(event) {
+            event.preventDefault();
+            
+            const formData = new FormData(event.target);
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    alert('Error: ' + errorText);
+                    return;
+                }
+
+                const result = await response.json();
+                
+                // Display original data summary
+                const originalSummaryDiv = document.getElementById('original-summary');
+                originalSummaryDiv.innerHTML = `
+                    <p><strong>Columns:</strong> ${result.original_summary.columns.join(', ')}</p>
+                    <p><strong>Shape:</strong> ${result.original_summary.shape[0]} rows, ${result.original_summary.shape[1]} columns</p>
+                    <h3>Descriptive Statistics</h3>
+                    <pre>${JSON.stringify(result.original_summary.description, null, 2)}</pre>
+                `;
+
+                // Display cleaned data summary
+                const cleanedSummaryDiv = document.getElementById('cleaned-summary');
+                cleanedSummaryDiv.innerHTML = `
+                    <p><strong>Columns:</strong> ${result.cleaned_summary.columns.join(', ')}</p>
+                    <p><strong>Shape:</strong> ${result.cleaned_summary.shape[0]} rows, ${result.cleaned_summary.shape[1]} columns</p>
+                    <h3>Descriptive Statistics</h3>
+                    <pre>${JSON.stringify(result.cleaned_summary.description, null, 2)}</pre>
+                `;
+                
+                // Display Plotly visualization
+                const plotDiv = document.getElementById('plotly-visualization');
+                Plotly.newPlot(plotDiv, JSON.parse(result.original_visualization).data, JSON.parse(result.original_visualization).layout);
+                document.getElementById('plotly-visualization').classList.remove('hidden');
+                
+                // Display Matplotlib visualization
+                const matplotlibImg = document.getElementById('matplotlib-visualization');
+                matplotlibImg.src = 'data:image/png;base64,' + result.matplotlib_visualization;
+
+                // Display Seaborn visualization
+                const seabornImg = document.getElementById('seaborn-visualization');
+                seabornImg.src = 'data:image/png;base64,' + result.seaborn_visualization;
+
+                // Default to Plotly
+                document.getElementById('matplotlib-visualization').classList.add('hidden');
+                document.getElementById('seaborn-visualization').classList.add('hidden');
+
+                // Button click handlers
+                document.getElementById('plotly-btn').onclick = () => {
+                    document.getElementById('plotly-visualization').classList.remove('hidden');
+                    document.getElementById('matplotlib-visualization').classList.add('hidden');
+                    document.getElementById('seaborn-visualization').classList.add('hidden');
+                };
+                document.getElementById('matplotlib-btn').onclick = () => {
+                    document.getElementById('plotly-visualization').classList.add('hidden');
+                    document.getElementById('matplotlib-visualization').classList.remove('hidden');
+                    document.getElementById('seaborn-visualization').classList.add('hidden');
+                };
+                document.getElementById('seaborn-btn').onclick = () => {
+                    document.getElementById('plotly-visualization').classList.add('hidden');
+                    document.getElementById('matplotlib-visualization').classList.add('hidden');
+                    document.getElementById('seaborn-visualization').classList.remove('hidden');
+                };
+            } catch (error) {
+                alert('Error: ' + error);
+            }
+        }
+    </script>
+</body>
+</html>
